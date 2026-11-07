@@ -72,22 +72,32 @@ struct WebAppView: UIViewRepresentable {
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         weak var webView: WKWebView?
         private var privacyCover: UIView?
+        private var authenticating = false
+        private var wasInBackground = false
 
         /// Uscendo dall'app la si blocca; rientrando si chiede Face ID.
         /// Nell'elenco delle app recenti l'anteprima è coperta.
         func observeLifecycle() {
             let nc = NotificationCenter.default
+            // La finestra di Face ID mette l'app "in pausa": in quel caso niente copertina,
+            // così lo sblocco è immediato.
             nc.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.showCover()
+                guard let self, !self.authenticating else { return }
+                self.showCover()
             }
             nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.hideCover()
+                guard let self else { return }
+                self.hideCover()
+                if self.wasInBackground {
+                    self.wasInBackground = false
+                    self.webView?.evaluateJavaScript("window.onAppForeground && window.onAppForeground()")
+                }
             }
             nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.webView?.evaluateJavaScript("window.onAppBackground && window.onAppBackground()")
-            }
-            nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.webView?.evaluateJavaScript("window.onAppForeground && window.onAppForeground()")
+                guard let self else { return }
+                self.wasInBackground = true
+                self.showCover()
+                self.webView?.evaluateJavaScript("window.onAppBackground && window.onAppBackground()")
             }
         }
 
@@ -112,7 +122,7 @@ struct WebAppView: UIViewRepresentable {
         private func hideCover() {
             guard let v = privacyCover else { return }
             privacyCover = nil
-            UIView.animate(withDuration: 0.2, animations: { v.alpha = 0 }) { _ in v.removeFromSuperview() }
+            v.removeFromSuperview()
         }
 
         // Messaggi dall'app web: salva/apri file e stampa
@@ -135,8 +145,11 @@ struct WebAppView: UIViewRepresentable {
                 let ctx = LAContext()
                 ctx.localizedCancelTitle = "Usa il PIN"
                 let reason = (body["reason"] as? String) ?? "Sblocca Carlucci'sHome"
+                authenticating = true
                 ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { [weak self] ok, _ in
                     DispatchQueue.main.async {
+                        self?.authenticating = false
+                        self?.hideCover()
                         self?.webView?.evaluateJavaScript("window.onBiometric && window.onBiometric(\(ok))")
                     }
                 }
