@@ -26,6 +26,7 @@ targets:
           - UIInterfaceOrientationPortrait
         NSPhotoLibraryUsageDescription: "Per allegare foto ai tuoi documenti."
         NSCameraUsageDescription: "Per fotografare documenti da allegare."
+        NSFaceIDUsageDescription: "Per sbloccare Carlucci'sHome senza digitare il PIN."
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:

@@ -1,6 +1,7 @@
 import SwiftUI
 import WebKit
 import UniformTypeIdentifiers
+import LocalAuthentication
 
 @main
 struct CarlucciHomeApp: App {
@@ -46,7 +47,12 @@ struct WebAppView: UIViewRepresentable {
         let ucc = cfg.userContentController
         ucc.add(context.coordinator, name: "native")
         let current = UIApplication.shared.alternateIconName ?? "AppIcon"
-        ucc.addUserScript(WKUserScript(source: "window.__NATIVE_IOS__ = true; window.__APP_ICON__ = '\(current)';",
+        let la = LAContext(); var laErr: NSError?
+        var bio = "none"
+        if la.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &laErr) {
+            bio = la.biometryType == .faceID ? "faceID" : (la.biometryType == .touchID ? "touchID" : "none")
+        }
+        ucc.addUserScript(WKUserScript(source: "window.__NATIVE_IOS__ = true; window.__APP_ICON__ = '\(current)'; window.__BIOMETRY__ = '\(bio)';",
                                        injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
         let wv = WKWebView(frame: .zero, configuration: cfg)
@@ -81,6 +87,15 @@ struct WebAppView: UIViewRepresentable {
                 let pc = UIPrintInteractionController.shared
                 pc.printFormatter = UIMarkupTextPrintFormatter(markupText: html)
                 pc.present(animated: true)
+            case "biometric":
+                let ctx = LAContext()
+                ctx.localizedCancelTitle = "Usa il PIN"
+                let reason = (body["reason"] as? String) ?? "Sblocca Carlucci'sHome"
+                ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { [weak self] ok, _ in
+                    DispatchQueue.main.async {
+                        self?.webView?.evaluateJavaScript("window.onBiometric && window.onBiometric(\(ok))")
+                    }
+                }
             case "setIcon":
                 guard let name = body["name"] as? String else { return }
                 let target: String? = (name == "AppIcon") ? nil : name

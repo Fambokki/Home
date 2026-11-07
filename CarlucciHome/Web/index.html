@@ -1517,6 +1517,64 @@ function installPWA() {
     else toast('❌ Non è stato possibile cambiare icona');
   };
   drawIcons();
+
+  /* ─── Face ID / Touch ID ─── */
+  const BIO = window.__BIOMETRY__ || 'none';
+  if (BIO !== 'none') {
+    const BIO_KEY = 'csh_bio';
+    const bioName = BIO === 'faceID' ? 'Face ID' : 'Touch ID';
+    const bioIcon = BIO === 'faceID' ? '🙂' : '👆';
+    const bioOn = () => { try { return localStorage.getItem(BIO_KEY) === '1'; } catch(e) { return false; } };
+    let bioPurpose = null;
+
+    // Tasto sulla schermata di blocco
+    const bbtn = document.createElement('button');
+    bbtn.className = 'lk-go';
+    bbtn.style.cssText = 'background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);margin-top:10px';
+    bbtn.textContent = bioIcon + ' Sblocca con ' + bioName;
+    bbtn.onclick = () => askBio('unlock');
+    document.querySelector('#lock .lk-go').after(bbtn);
+
+    // Interruttore nelle Impostazioni
+    const bs = document.createElement('div');
+    bs.innerHTML = '<div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:12px 14px">'
+      + '<span style="font-size:24px">' + bioIcon + '</span>'
+      + '<div style="flex:1"><div style="font-size:14px;font-weight:800">Sblocca con ' + bioName + '</div>'
+      + '<div style="font-size:12px;color:var(--muted);font-weight:500">Il PIN resta valido come alternativa</div></div>'
+      + '<button id="bio-tg" style="width:52px;height:32px;border-radius:16px;border:none;position:relative;cursor:pointer;-webkit-appearance:none;transition:background .2s" onclick="toggleBio()"><span id="bio-knob" style="position:absolute;top:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);transition:left .2s"></span></button></div>'
+      + '<div style="height:1px;background:var(--border);margin:14px 0 2px"></div>';
+    const sb = document.querySelector('#sh-settings .sh-body');
+    sb.insertBefore(bs, sb.children[1] || null);
+
+    function drawToggle(){
+      const on = bioOn();
+      document.getElementById('bio-tg').style.background = on ? '#34c759' : '#d1d5db';
+      document.getElementById('bio-knob').style.left = on ? '23px' : '3px';
+      bbtn.style.display = on ? '' : 'none';
+    }
+    function askBio(purpose){
+      bioPurpose = purpose;
+      post({action:'biometric', reason: purpose === 'enable' ? 'Attiva lo sblocco con ' + bioName : "Sblocca Carlucci'sHome"});
+    }
+    window.toggleBio = function(){
+      if (bioOn()) { try { localStorage.removeItem(BIO_KEY); } catch(e){} drawToggle(); toast(bioName + ' disattivato'); }
+      else askBio('enable');
+    };
+    window.onBiometric = function(ok){
+      const purpose = bioPurpose; bioPurpose = null;
+      if (!ok) return;
+      if (purpose === 'enable') {
+        try { localStorage.setItem(BIO_KEY, '1'); } catch(e){}
+        drawToggle(); toast('✅ ' + bioName + ' attivato');
+      } else if (purpose === 'unlock' && document.getElementById('lock').style.display !== 'none') {
+        document.getElementById('lock-inp').value = pin();
+        tryUnlock();
+      }
+    };
+    drawToggle();
+    // All'apertura dell'app chiede subito Face ID
+    if (bioOn()) setTimeout(() => askBio('unlock'), 400);
+  }
 })();
 </script>
 </body>
