@@ -1,0 +1,6 @@
+build/
+*.xcodeproj/
+CarlucciHome/Info.plist
+Payload/
+*.ipa
+.DS_Store

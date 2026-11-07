@@ -1,0 +1,36 @@
+name: CarlucciHome
+options:
+  bundleIdPrefix: it.personale
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  CarlucciHome:
+    type: application
+    platform: iOS
+    sources:
+      - path: CarlucciHome
+        excludes:
+          - "Web/**"
+      - path: CarlucciHome/Web
+        type: folder
+        buildPhase: resources
+    info:
+      path: CarlucciHome/Info.plist
+      properties:
+        CFBundleDisplayName: "Carlucci'sHome"
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UIStatusBarStyle: UIStatusBarStyleDarkContent
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSPhotoLibraryUsageDescription: "Per allegare foto ai tuoi documenti."
+        NSCameraUsageDescription: "Per fotografare documenti da allegare."
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.personale.carluccihome
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "5.0"
