@@ -1484,6 +1484,39 @@ function installPWA() {
     return { document:{ write:h=>{html+=h;}, close:()=>{} }, print:()=>post({action:'print', html}), close:()=>{} };
   };
   document.querySelectorAll('[onclick*="openShare"],#sb-exit-item,#menu-exit-item').forEach(e=>e.style.display='none');
+
+  /* ─── Selettore icona dell'app ─── */
+  const ICONS = [
+    ['AppIcon','Classica'], ['AppIcon-Notte','Notte oro'], ['AppIcon-Chiara','Chiara'],
+    ['AppIcon-Cassaforte','Cassaforte'], ['AppIcon-Tramonto','Tramonto'], ['AppIcon-Smeraldo','Smeraldo']
+  ];
+  let curIcon = window.__APP_ICON__ || 'AppIcon';
+  const st = document.createElement('style');
+  st.textContent = '.ic-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}'
+    + '.ic-opt{background:none;border:none;padding:0;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;-webkit-appearance:none;touch-action:manipulation}'
+    + '.ic-opt img{width:68px;height:68px;border-radius:16px;box-shadow:0 3px 10px rgba(26,39,68,.18);outline:3px solid transparent;outline-offset:3px;transition:outline-color .15s}'
+    + '.ic-opt.on img{outline-color:var(--blue)}'
+    + '.ic-opt span{font-size:12px;font-weight:700;color:var(--muted)}.ic-opt.on span{color:var(--blue)}';
+  document.head.appendChild(st);
+  const sec = document.createElement('div');
+  sec.innerHTML = '<div style="font-size:14px;font-weight:800;margin-bottom:10px">🎨 Icona dell\'app</div><div class="ic-grid" id="ic-grid"></div>'
+    + '<div style="height:1px;background:var(--border);margin:6px 0 2px"></div>';
+  const body = document.querySelector('#sh-settings .sh-body');
+  body.insertBefore(sec, body.firstChild);
+  function drawIcons(){
+    document.getElementById('ic-grid').innerHTML = ICONS.map(([id,label]) =>
+      '<button class="ic-opt'+(id===curIcon?' on':'')+'" onclick="chooseIcon(\''+id+'\')">'
+      + '<img src="icons/'+id+'.png" alt=""><span>'+label+'</span></button>').join('');
+  }
+  window.chooseIcon = function(id){
+    if (id === curIcon) return;
+    post({action:'setIcon', name:id});
+  };
+  window.onNativeIconChanged = function(id, ok){
+    if (ok) { curIcon = id; drawIcons(); }
+    else toast('❌ Non è stato possibile cambiare icona');
+  };
+  drawIcons();
 })();
 </script>
 </body>

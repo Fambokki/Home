@@ -31,6 +31,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: it.personale.carluccihome
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon-Tramonto AppIcon-Smeraldo AppIcon-Notte AppIcon-Chiara AppIcon-Cassaforte"
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: NO
         SWIFT_VERSION: "5.0"

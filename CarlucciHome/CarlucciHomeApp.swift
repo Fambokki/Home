@@ -45,7 +45,8 @@ struct WebAppView: UIViewRepresentable {
         cfg.allowsInlineMediaPlayback = true
         let ucc = cfg.userContentController
         ucc.add(context.coordinator, name: "native")
-        ucc.addUserScript(WKUserScript(source: "window.__NATIVE_IOS__ = true;",
+        let current = UIApplication.shared.alternateIconName ?? "AppIcon"
+        ucc.addUserScript(WKUserScript(source: "window.__NATIVE_IOS__ = true; window.__APP_ICON__ = '\(current)';",
                                        injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
         let wv = WKWebView(frame: .zero, configuration: cfg)
@@ -80,6 +81,16 @@ struct WebAppView: UIViewRepresentable {
                 let pc = UIPrintInteractionController.shared
                 pc.printFormatter = UIMarkupTextPrintFormatter(markupText: html)
                 pc.present(animated: true)
+            case "setIcon":
+                guard let name = body["name"] as? String else { return }
+                let target: String? = (name == "AppIcon") ? nil : name
+                guard UIApplication.shared.supportsAlternateIcons,
+                      UIApplication.shared.alternateIconName != target else { return }
+                UIApplication.shared.setAlternateIconName(target) { [weak self] err in
+                    let ok = err == nil
+                    let js = "window.onNativeIconChanged && window.onNativeIconChanged('\(name)', \(ok))"
+                    DispatchQueue.main.async { self?.webView?.evaluateJavaScript(js) }
+                }
             default: break
             }
         }
