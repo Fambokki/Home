@@ -63,6 +63,7 @@ struct WebAppView: UIViewRepresentable {
         wv.scrollView.contentInsetAdjustmentBehavior = .never
         wv.scrollView.bounces = false
         context.coordinator.webView = wv
+        context.coordinator.observeLifecycle()
         wv.load(URLRequest(url: URL(string: "carlucci://app/index.html")!))
         return wv
     }
@@ -70,6 +71,49 @@ struct WebAppView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
         weak var webView: WKWebView?
+        private var privacyCover: UIView?
+
+        /// Uscendo dall'app la si blocca; rientrando si chiede Face ID.
+        /// Nell'elenco delle app recenti l'anteprima è coperta.
+        func observeLifecycle() {
+            let nc = NotificationCenter.default
+            nc.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.showCover()
+            }
+            nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.hideCover()
+            }
+            nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.webView?.evaluateJavaScript("window.onAppBackground && window.onAppBackground()")
+            }
+            nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.webView?.evaluateJavaScript("window.onAppForeground && window.onAppForeground()")
+            }
+        }
+
+        private func showCover() {
+            guard privacyCover == nil, let win = webView?.window else { return }
+            let v = UIView(frame: win.bounds)
+            v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            v.backgroundColor = UIColor(red: 0.10, green: 0.15, blue: 0.27, alpha: 1)
+            let l = UILabel()
+            l.text = "🏠\nCarlucci'sHome"
+            l.numberOfLines = 2
+            l.textAlignment = .center
+            l.textColor = .white
+            l.font = .systemFont(ofSize: 26, weight: .heavy)
+            l.translatesAutoresizingMaskIntoConstraints = false
+            v.addSubview(l)
+            NSLayoutConstraint.activate([l.centerXAnchor.constraint(equalTo: v.centerXAnchor),
+                                         l.centerYAnchor.constraint(equalTo: v.centerYAnchor)])
+            win.addSubview(v)
+            privacyCover = v
+        }
+        private func hideCover() {
+            guard let v = privacyCover else { return }
+            privacyCover = nil
+            UIView.animate(withDuration: 0.2, animations: { v.alpha = 0 }) { _ in v.removeFromSuperview() }
+        }
 
         // Messaggi dall'app web: salva/apri file e stampa
         func userContentController(_ ucc: WKUserContentController, didReceive msg: WKScriptMessage) {

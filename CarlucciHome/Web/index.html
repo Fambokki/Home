@@ -1518,6 +1518,10 @@ function installPWA() {
   };
   drawIcons();
 
+  /* ─── Blocco automatico quando si esce dall'app ─── */
+  window.onAppBackground = function(){
+    if (document.getElementById('app').classList.contains('ready')) lockApp();
+  };
   /* ─── Face ID / Touch ID ─── */
   const BIO = window.__BIOMETRY__ || 'none';
   if (BIO !== 'none') {
@@ -1572,6 +1576,11 @@ function installPWA() {
       }
     };
     drawToggle();
+    // Rientrando nell'app chiede subito Face ID
+    window.onAppForeground = function(){
+      if (bioOn() && document.getElementById('lock').style.display !== 'none' && !bioPurpose)
+        setTimeout(() => askBio('unlock'), 250);
+    };
     // All'apertura dell'app chiede subito Face ID
     if (bioOn()) setTimeout(() => askBio('unlock'), 400);
   }
