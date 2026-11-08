@@ -2,6 +2,7 @@ import SwiftUI
 import WebKit
 import UniformTypeIdentifiers
 import LocalAuthentication
+import QuickLook
 
 @main
 struct CarlucciHomeApp: App {
@@ -69,7 +70,7 @@ struct WebAppView: UIViewRepresentable {
     }
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate, QLPreviewControllerDataSource {
         weak var webView: WKWebView?
         private var privacyCover: UIView?
         private var authenticating = false
@@ -136,6 +137,27 @@ struct WebAppView: UIViewRepresentable {
                 let url = FileManager.default.temporaryDirectory.appendingPathComponent(safe)
                 try? data.write(to: url, options: .atomic)
                 share([url])
+            case "preview":
+                guard let files = body["files"] as? [[String: Any]] else { return }
+                let dir = FileManager.default.temporaryDirectory.appendingPathComponent("anteprima", isDirectory: true)
+                try? FileManager.default.removeItem(at: dir)
+                try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                var urls: [URL] = []
+                for (i, f) in files.enumerated() {
+                    guard let b64 = f["data"] as? String, let data = Data(base64Encoded: b64) else { continue }
+                    var name = ((f["name"] as? String) ?? "allegato").replacingOccurrences(of: "/", with: "-")
+                    if name.isEmpty { name = "allegato" }
+                    let sub = dir.appendingPathComponent("\(i)", isDirectory: true)
+                    try? FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+                    let url = sub.appendingPathComponent(name)
+                    if (try? data.write(to: url, options: .atomic)) != nil { urls.append(url) }
+                }
+                guard !urls.isEmpty else { return }
+                previewURLs = urls
+                let ql = QLPreviewController()
+                ql.dataSource = self
+                ql.currentPreviewItemIndex = min(max((body["index"] as? Int) ?? 0, 0), urls.count - 1)
+                present(ql)
             case "print":
                 guard let html = body["html"] as? String else { return }
                 let pc = UIPrintInteractionController.shared
@@ -165,6 +187,17 @@ struct WebAppView: UIViewRepresentable {
                 }
             default: break
             }
+        }
+
+        var previewURLs: [URL] = []
+        func numberOfPreviewItems(in controller: QLPreviewController) -> Int { previewURLs.count }
+        func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+            previewURLs[index] as NSURL
+        }
+        func present(_ vc: UIViewController) {
+            guard let root = webView?.window?.rootViewController else { return }
+            var top = root; while let p = top.presentedViewController { top = p }
+            top.present(vc, animated: true)
         }
 
         func share(_ items: [Any]) {

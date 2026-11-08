@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "Carlucci'sHome";
+"NSCameraUsageDescription" = "Per fotografare documenti da allegare.";
+"NSPhotoLibraryUsageDescription" = "Per allegare foto ai tuoi documenti.";
+"NSFaceIDUsageDescription" = "Per sbloccare Carlucci'sHome senza digitare il PIN.";

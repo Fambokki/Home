@@ -239,6 +239,15 @@ details.more .form-group input,details.more .form-group textarea{background:var(
 .att-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .att-size{font-size:12px;color:var(--muted);}
 .att-rm{width:28px;height:28px;border-radius:50%;border:none;background:var(--danger-soft);color:var(--danger);font-size:13px;font-weight:700;flex-shrink:0;}
+.att-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.att-th{border:none;padding:0;background:var(--card);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;text-align:left;}
+.att-th:active{transform:scale(.97);}
+.att-th .th-img{aspect-ratio:1/1;width:100%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden;position:relative;}
+.att-th .th-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.att-th .th-ext{position:absolute;bottom:6px;right:6px;font-size:10px;font-weight:800;color:#fff;background:rgba(16,22,47,.7);padding:2px 6px;border-radius:6px;text-transform:uppercase;}
+.att-th .th-name{font-size:12px;font-weight:600;padding:7px 8px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.att-hint{font-size:13px;color:var(--muted);padding:8px 4px 0;}
+.att-item.tap{cursor:pointer;}
 .att-open{border:none;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:7px 14px;font-size:14px;font-weight:700;flex-shrink:0;}
 
 /* Pulsanti */
@@ -1000,9 +1009,8 @@ function openDetail(id) {
   if (d.amount && parseFloat(d.amount) > 0) kv.push(['Importo', '€ ' + parseFloat(d.amount).toLocaleString('it-IT', {minimumFractionDigits:2})]);
   kv.push(['Aggiunto il', new Date(d.createdAt).toLocaleDateString('it-IT')]);
   const att = atts.length
-    ? '<div class="att-list-wrap">' + atts.map((a,i) => `<div class="att-item"><span class="att-icon">${fileIcon(a.name)}</span>
-        <div class="att-info"><div class="att-name">${esc(a.name)}</div></div>
-        <button class="att-open" onclick="openFileByIdx('${id}',${i})">Apri</button></div>`).join('') + '</div>'
+    ? '<div class="att-grid">' + atts.map((a,i) => attThumb(a, `openFileByIdx('${id}',${i})`)).join('') + '</div>'
+      + '<div class="att-hint">Tocca un allegato per vederlo in anteprima.</div>'
     : '';
   document.getElementById('sh-detail-body').innerHTML = `
     <div class="sh-nav"><button class="nav-btn" onclick="closeSheet('sh-detail')">Chiudi</button><h3></h3>
@@ -1018,6 +1026,16 @@ function openDetail(id) {
       <button class="btn-text-danger" onclick="deleteFromDetail('${id}')">Elimina documento</button>
     </div>`;
   openSheet('sh-detail');
+}
+function isImg(a) {
+  return /^data:image\//.test(a.data || '') || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(a.name || '');
+}
+function attThumb(a, onclick) {
+  const ext = ((a.name || '').split('.').pop() || '').slice(0,4);
+  const inner = isImg(a) && /^data:image\//.test(a.data || '')
+    ? `<img src="${a.data}" alt="" loading="lazy">`
+    : `${fileIcon(a.name)}${ext ? `<span class="th-ext">${esc(ext)}</span>` : ''}`;
+  return `<button class="att-th" onclick="${onclick}"><span class="th-img">${inner}</span><span class="th-name">${esc(a.name || 'allegato')}</span></button>`;
 }
 function deleteFromDetail(id) {
   showConfirm('🗑', 'Eliminare il documento?', 'Verranno eliminati anche i suoi allegati. Non si può annullare.', 'Elimina', () => {
@@ -1063,17 +1081,17 @@ function openFileByIdx(id, idx) {
 function renderAttList(files) {
   const el = document.getElementById('att-list'); if (!el) return;
   if (!files.length) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="att-list-wrap" style="margin-top:8px">' +
-    files.map((f,i) =>
-      '<div class="att-item">' +
-      '<span class="att-icon">'+fileIcon(f.name)+'</span>' +
-      '<div class="att-info"><div class="att-name">'+esc(f.name)+'</div>' +
-      (f.size?'<div class="att-size">'+(f.size/1024).toFixed(0)+' KB</div>':'') +
-      '</div>' +
-      '<button class="att-rm" onclick="removeAtt('+i+')">✕</button>' +
-      '</div>'
-    ).join('') + '</div>';
+  el.innerHTML = '<div class="att-list-wrap">' + files.map((f,i) =>
+    '<div class="att-item tap" onclick="previewPend('+i+')">' +
+    '<span class="att-icon" style="overflow:hidden">' + (isImg(f) && /^data:image\//.test(f.data||'') ? '<img src="'+f.data+'" style="width:100%;height:100%;object-fit:cover" alt="">' : fileIcon(f.name)) + '</span>' +
+    '<div class="att-info"><div class="att-name">'+esc(f.name)+'</div>' +
+    (f.size?'<div class="att-size">'+(f.size>1048576?(f.size/1048576).toFixed(1)+' MB':Math.max(1,Math.round(f.size/1024))+' KB')+'</div>':'') +
+    '</div>' +
+    '<button class="att-rm" onclick="event.stopPropagation();removeAtt('+i+')" aria-label="Rimuovi">✕</button>' +
+    '</div>'
+  ).join('') + '</div>';
 }
+function previewPend(i) { const f = pendFiles[i]; if (f) openFileData(f.data, f.name); }
 
 function removeAtt(i) {
   pendFiles.splice(i, 1);
@@ -1429,6 +1447,17 @@ function installPWA() {
     if (i < 0) { toast('❌ Allegato non valido'); return; }
     post({action:'saveFile', name: name || 'allegato', data: data.slice(i+1)});
   };
+  const toB64 = a => { const d = a.data || ''; const k = d.indexOf(','); return k >= 0 ? d.slice(k+1) : ''; };
+  const preview = (list, index) => {
+    const files = list.filter(a => toB64(a)).map(a => ({name: a.name || 'allegato', data: toB64(a)}));
+    if (!files.length) { toast('❌ Allegato non disponibile'); return; }
+    post({action:'preview', files, index: Math.min(index, files.length - 1)});
+  };
+  window.openFileByIdx = function(id, idx){
+    const d = docs.find(x => x.id === id); if (!d) return;
+    preview(getAtts(d), idx);
+  };
+  window.previewPend = function(i){ preview(pendFiles, i); };
   window.open = function(){
     let html = '';
     return { document:{ write:h=>{html+=h;}, close:()=>{} }, print:()=>post({action:'print', html}), close:()=>{} };
